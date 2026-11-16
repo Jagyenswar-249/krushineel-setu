@@ -47,10 +47,13 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
                 resp = await client.get(BASE_URL, params=params, headers=headers)
 
             if resp.status_code != 200:
+                # If government API is temporarily rate-limited or throttling, serve cached database prices gracefully
+                existing_count = db.query(MandiPrice).count()
                 return {
-                    "status": "error",
+                    "status": "rate_limited" if resp.status_code == 429 else "error",
                     "code": resp.status_code,
-                    "message": f"Data.gov.in API returned error: {resp.text[:200]}"
+                    "message": f"Data.gov.in returned status {resp.status_code} ({'Hourly rate limit window active on public gateway' if resp.status_code == 429 else 'Upstream notice'}). Serving {existing_count} cached Odisha mandi records.",
+                    "records_available": existing_count
                 }
 
             data = resp.json()
