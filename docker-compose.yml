@@ -1,0 +1,70 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: krushineel-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: setu
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d setu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: krushineel-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: krushineel-api
+    environment:
+      DEMO_MODE: "true"
+      DATABASE_URL: "postgresql+psycopg://app:app@db:5432/setu"
+      REDIS_URL: "redis://redis:6379/0"
+      JWT_SECRET: "krushineel-jwt-secret-production"
+      ML_SERVICE_URL: "http://ml:9000"
+      SIMULATOR_ENABLED: "true"
+      SMS_PROVIDER: "mock"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./storage:/app/storage
+
+  ml:
+    build:
+      context: .
+      dockerfile: services/ml/Dockerfile
+    container_name: krushineel-ml
+    ports:
+      - "9000:9000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: krushineel-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:
