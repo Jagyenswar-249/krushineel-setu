@@ -38,7 +38,9 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
     }
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # data.gov.in database queries take longer due to heavy dataset aggregations
+        timeout_config = httpx.Timeout(connect=15.0, read=45.0, write=15.0, pool=15.0)
+        async with httpx.AsyncClient(timeout=timeout_config, verify=False) as client:
             resp = await client.get(BASE_URL, params=params)
             if resp.status_code != 200:
                 return {
