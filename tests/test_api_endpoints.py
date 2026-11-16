@@ -130,7 +130,12 @@ def test_admin_router(db):
     assert stats["cold_rooms_count"] >= 1
     assert stats["mandis_tracked"] >= 1
 
+    # Get an existing cold room ID dynamically
+    from apps.api.models.coldwatch import ColdRoom
+    room = db.query(ColdRoom).first()
+    assert room is not None
+
     # Simulator scenario
-    res = trigger_simulator_scenario(SimulatorScenarioRequest(cold_room_id=1, scenario="door_open"), db)
+    res = trigger_simulator_scenario(SimulatorScenarioRequest(cold_room_id=room.id, scenario="door_open"), db)
     assert res["status"] == "success"
     assert res["badge"] == "SIMULATED"
