@@ -125,7 +125,9 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
 
     except Exception as exc:
         db.rollback()
+        import traceback
         return {
             "status": "error",
-            "message": f"Failed to ingest from data.gov.in: {str(exc)}"
+            "message": f"Failed to ingest from data.gov.in: {type(exc).__name__}: {str(exc)}",
+            "trace": traceback.format_exc()[-300:]
         }
