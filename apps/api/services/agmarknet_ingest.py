@@ -33,15 +33,20 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
         "api-key": settings.DATAGOV_API_KEY,
         "format": "json",
         "offset": 0,
-        "limit": 100,
+        "limit": 25,
         "filters[state]": "Odisha"
+    }
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KrushiNeel/1.0",
+        "Accept": "application/json"
     }
 
     try:
         # data.gov.in database queries take longer due to heavy dataset aggregations
-        timeout_config = httpx.Timeout(connect=15.0, read=45.0, write=15.0, pool=15.0)
-        async with httpx.AsyncClient(timeout=timeout_config, verify=False) as client:
-            resp = await client.get(BASE_URL, params=params)
+        timeout_config = httpx.Timeout(connect=15.0, read=90.0, write=15.0, pool=15.0)
+        async with httpx.AsyncClient(timeout=timeout_config, verify=False, follow_redirects=True) as client:
+            resp = await client.get(BASE_URL, params=params, headers=headers)
             if resp.status_code != 200:
                 return {
                     "status": "error",
