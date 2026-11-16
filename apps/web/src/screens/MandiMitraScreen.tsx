@@ -33,12 +33,16 @@ export const MandiMitraScreen: React.FC<MandiMitraScreenProps> = ({ language }) 
         api.getMandis(),
         api.getCommodities()
       ]);
-      setMandis(mList || []);
-      setCommodities(cList || []);
-      if (mList && mList.length > 0) setSelectedMandiId(mList[0].id);
-      if (cList && cList.length > 0) setSelectedCommId(cList[0].id);
+      const validMandis = Array.isArray(mList) ? mList : [];
+      const validCommodities = Array.isArray(cList) ? cList : [];
+      setMandis(validMandis);
+      setCommodities(validCommodities);
+      if (validMandis.length > 0) setSelectedMandiId(validMandis[0].id);
+      if (validCommodities.length > 0) setSelectedCommId(validCommodities[0].id);
     } catch (e) {
       console.error(e);
+      setMandis([]);
+      setCommodities([]);
     }
   };
 
