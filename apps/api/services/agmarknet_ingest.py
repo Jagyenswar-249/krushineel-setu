@@ -77,7 +77,13 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
                 # Find or create Mandi
                 mandi = db.query(Mandi).filter(Mandi.name.ilike(f"%{market_name}%")).first()
                 if not mandi:
-                    mandi = Mandi(name=market_name, district=item.get("district", "Odisha"), state="Odisha")
+                    mandi = Mandi(
+                        name=market_name,
+                        name_or=market_name,
+                        district=item.get("district", "Odisha"),
+                        lat=20.2961,
+                        lon=85.8245
+                    )
                     db.add(mandi)
                     db.flush()
 
@@ -87,9 +93,11 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
                     comm = Commodity(
                         name_en=commodity_name,
                         name_or=commodity_name,
-                        variety=item.get("variety", "General"),
-                        shelf_life_days_ambient=4,
-                        shelf_life_days_cold=21
+                        category="veg",
+                        unit="Quintal",
+                        default_shelf_life_days=10.0,
+                        optimal_min_temp=4.0,
+                        optimal_max_temp=10.0
                     )
                     db.add(comm)
                     db.flush()
