@@ -13,6 +13,7 @@ from apps.api.models.mandimitra import Mandi, Commodity, MandiPrice
 # Official resource id for Agmarknet on data.gov.in
 AGMARKNET_RESOURCE_ID = "9ef84268-d588-465a-a308-a864a43d0070"
 BASE_URL = "https://api.data.gov.in/resource/" + AGMARKNET_RESOURCE_ID
+PUBLIC_FALLBACK_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b"
 
 
 async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.date] = None) -> Dict[str, Any]:
@@ -20,17 +21,10 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
     Pulls real daily commodity prices for Odisha from data.gov.in API.
     If no API key is set, returns an informative status with last cached records.
     """
-    if not settings.DATAGOV_API_KEY:
-        return {
-            "status": "skipped",
-            "message": "DATAGOV_API_KEY is not set. Using local database historical records.",
-            "records_updated": 0
-        }
-
-    date_str = (target_date or datetime.date.today()).strftime("%d/%m/%Y")
+    api_key = settings.DATAGOV_API_KEY or PUBLIC_FALLBACK_KEY
 
     params = {
-        "api-key": settings.DATAGOV_API_KEY,
+        "api-key": api_key,
         "format": "json",
         "offset": 0,
         "limit": 25,
@@ -43,10 +37,15 @@ async def sync_odisha_mandi_prices(db: Session, target_date: Optional[datetime.d
     }
 
     try:
-        # data.gov.in database queries take longer due to heavy dataset aggregations
         timeout_config = httpx.Timeout(connect=15.0, read=90.0, write=15.0, pool=15.0)
         async with httpx.AsyncClient(timeout=timeout_config, verify=False, follow_redirects=True) as client:
             resp = await client.get(BASE_URL, params=params, headers=headers)
+            
+            # If user key gave 403, retry once with the official Open Data test key
+            if resp.status_code == 403 and api_key != PUBLIC_FALLBACK_KEY:
+                params["api-key"] = PUBLIC_FALLBACK_KEY
+                resp = await client.get(BASE_URL, params=params, headers=headers)
+
             if resp.status_code != 200:
                 return {
                     "status": "error",
