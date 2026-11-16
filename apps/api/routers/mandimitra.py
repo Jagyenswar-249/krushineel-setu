@@ -8,9 +8,19 @@ from apps.api.schemas.all import (
     MandiResponse, CommodityResponse, PriceAdviceResponse, PriceAlertCreate, PriceAlertResponse
 )
 from apps.api.services.mandimitra_service import calculate_price_forecast_and_advice
+from apps.api.services.agmarknet_ingest import sync_odisha_mandi_prices
 from apps.api.routers.auth import get_current_user
 
 router = APIRouter(tags=["MandiMitra"])
+
+
+@router.post("/sync-live")
+async def trigger_live_mandi_sync(db: Session = Depends(get_db)):
+    """
+    Triggers on-demand synchronization of Odisha mandi prices from data.gov.in Agmarknet API.
+    """
+    result = await sync_odisha_mandi_prices(db)
+    return result
 
 
 @router.get("/mandis", response_model=List[MandiResponse])

@@ -40,38 +40,41 @@ def is_point_in_polygon(lat: float, lon: float, polygon: List[List[float]]) -> b
 async def fetch_marine_forecast(lat: float, lon: float) -> Dict[str, Any]:
     """
     Calls Open-Meteo marine and weather API with graceful fallback.
-    In DEMO_MODE, returns calibrated coastal marine conditions immediately.
+    Fetches real-time wave heights, wind speeds, and wind gusts.
     """
-    from apps.api.config import settings
-    if settings.DEMO_MODE:
-        return evaluate_risk(wave_m=1.3, wind_kmh=22.0, gust_kmh=28.0)
-
     url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=wave_height,wind_wave_height&hourly=wave_height"
     weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=wind_speed_10m,wind_gusts_10m"
 
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
+        async with httpx.AsyncClient(timeout=4.0) as client:
             resp_marine = await client.get(url)
             resp_weather = await client.get(weather_url)
             
             wave_m = 1.2
-            wind_kmh = 22.0
-            gust_kmh = 30.0
+            wind_kmh = 20.0
+            gust_kmh = 28.0
 
             if resp_marine.status_code == 200:
                 data = resp_marine.json()
-                wave_m = float(data.get("current", {}).get("wave_height", 1.2))
+                wave_val = data.get("current", {}).get("wave_height")
+                if wave_val is not None:
+                    wave_m = float(wave_val)
 
             if resp_weather.status_code == 200:
                 w_data = resp_weather.json()
-                wind_kmh = float(w_data.get("current", {}).get("wind_speed_10m", 22.0))
-                gust_kmh = float(w_data.get("current", {}).get("wind_gusts_10m", 30.0))
+                curr_w = w_data.get("current", {})
+                wind_val = curr_w.get("wind_speed_10m")
+                gust_val = curr_w.get("wind_gusts_10m")
+                if wind_val is not None:
+                    wind_kmh = float(wind_val)
+                if gust_val is not None:
+                    gust_kmh = float(gust_val)
 
             return evaluate_risk(wave_m, wind_kmh, gust_kmh)
 
-    except Exception:
-        # Fallback offline simulation based on season/location
-        return evaluate_risk(wave_m=1.4, wind_kmh=24.0, gust_kmh=32.0)
+    except Exception as exc:
+        print(f"[Open-Meteo Marine] Offline fallback invoked: {exc}")
+        return evaluate_risk(wave_m=1.3, wind_kmh=22.0, gust_kmh=29.0)
 
 
 def evaluate_risk(wave_m: float, wind_kmh: float, gust_kmh: float) -> Dict[str, Any]:
